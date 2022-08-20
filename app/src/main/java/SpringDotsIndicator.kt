@@ -12,60 +12,73 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.LinearLayout.HORIZONTAL
 import android.widget.RelativeLayout
-import androidx.dynamicanimation.animation.FloatPropertyCompat
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
-import ir.webesho.org.BaseDotsIndicator.Type.WORM
+import ir.webesho.org.BaseDotsIndicator.Type.SPRING
 
-class WormDotsIndicator @JvmOverloads constructor(
+class SpringDotsIndicator @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : BaseDotsIndicator(context, attrs, defStyleAttr) {
-    private var dotIndicatorView: ImageView? = null
-    private var dotIndicatorLayout: View? = null
+
+    companion object {
+        private const val DEFAULT_DAMPING_RATIO = 0.5f
+        private const val DEFAULT_STIFFNESS = 300
+    }
+
+    private var dotIndicatorView: View? = null
 
     // Attributes
     private var dotsStrokeWidth: Float = 0f
-    private var dotIndicatorColor: Int = 0
     private var dotsStrokeColor: Int = 0
+    private var dotIndicatorColor: Int = 0
+    private var stiffness: Float = 0f
+    private var dampingRatio: Float = 0f
 
-    private var dotIndicatorXSpring: SpringAnimation? = null
-    private var dotIndicatorWidthSpring: SpringAnimation? = null
+    private val dotIndicatorSize: Float
+    private var dotIndicatorSpring: SpringAnimation? = null
     private val strokeDotsLinearLayout: LinearLayout = LinearLayout(context)
 
     init {
-        val linearParams = LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
+
+        val horizontalPadding = dpToPxF(24f)
+        clipToPadding = false
+        setPadding(horizontalPadding.toInt(), 0, horizontalPadding.toInt(), 0)
+        strokeDotsLinearLayout.orientation = HORIZONTAL
+        addView(
+            strokeDotsLinearLayout, ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        val horizontalPadding = dpToPx(24)
-        setPadding(horizontalPadding, 0, horizontalPadding, 0)
-        clipToPadding = false
-        strokeDotsLinearLayout.layoutParams = linearParams
-        strokeDotsLinearLayout.orientation = HORIZONTAL
-        addView(strokeDotsLinearLayout)
 
         dotsStrokeWidth = dpToPxF(2f) // 2dp
         dotIndicatorColor = context.getThemePrimaryColor()
         dotsStrokeColor = dotIndicatorColor
+        stiffness = DEFAULT_STIFFNESS.toFloat()
+        dampingRatio = DEFAULT_DAMPING_RATIO
 
         if (attrs != null) {
-            val a = getContext().obtainStyledAttributes(attrs, R.styleable.WormDotsIndicator)
+            val a = getContext().obtainStyledAttributes(attrs, R.styleable.SpringDotsIndicator)
 
             // Dots attributes
             dotIndicatorColor =
-                a.getColor(R.styleable.WormDotsIndicator_dotsColor, dotIndicatorColor)
-            dotsStrokeColor =
-                a.getColor(R.styleable.WormDotsIndicator_dotsStrokeColor, dotIndicatorColor)
+                a.getColor(R.styleable.SpringDotsIndicator_dotsColor, dotIndicatorColor)
+            dotsStrokeColor = a.getColor(
+                R.styleable.SpringDotsIndicator_dotsStrokeColor,
+                dotIndicatorColor
+            )
+            stiffness = a.getFloat(R.styleable.SpringDotsIndicator_stiffness, stiffness)
+            dampingRatio = a.getFloat(R.styleable.SpringDotsIndicator_dampingRatio, dampingRatio)
 
             // Spring dots attributes
             dotsStrokeWidth = a.getDimension(
-                R.styleable.WormDotsIndicator_dotsStrokeWidth,
+                R.styleable.SpringDotsIndicator_dotsStrokeWidth,
                 dotsStrokeWidth
             )
 
             a.recycle()
         }
+
+        dotIndicatorSize = dotsSize
 
         if (isInEditMode) {
             addDots(5)
@@ -84,31 +97,13 @@ class WormDotsIndicator @JvmOverloads constructor(
             removeView(dotIndicatorView)
         }
 
-        dotIndicatorLayout = buildDot(false)
-        dotIndicatorView = dotIndicatorLayout!!.findViewById(R.id.worm_dot)
-        addView(dotIndicatorLayout)
-        dotIndicatorXSpring = SpringAnimation(dotIndicatorLayout, SpringAnimation.TRANSLATION_X)
-        val springForceX = SpringForce(0f)
-        springForceX.dampingRatio = 1f
-        springForceX.stiffness = 300f
-        dotIndicatorXSpring!!.spring = springForceX
-
-        val floatPropertyCompat = object : FloatPropertyCompat<View>("DotsWidth") {
-            override fun getValue(`object`: View): Float {
-                return dotIndicatorView!!.layoutParams.width.toFloat()
-            }
-
-            override fun setValue(`object`: View, value: Float) {
-                val params = dotIndicatorView!!.layoutParams
-                params.width = value.toInt()
-                dotIndicatorView!!.requestLayout()
-            }
-        }
-        dotIndicatorWidthSpring = SpringAnimation(dotIndicatorLayout, floatPropertyCompat)
-        val springForceWidth = SpringForce(0f)
-        springForceWidth.dampingRatio = 1f
-        springForceWidth.stiffness = 300f
-        dotIndicatorWidthSpring!!.spring = springForceWidth
+        dotIndicatorView = buildDot(false)
+        addView(dotIndicatorView)
+        dotIndicatorSpring = SpringAnimation(dotIndicatorView, SpringAnimation.TRANSLATION_X)
+        val springForce = SpringForce(0f)
+        springForce.dampingRatio = dampingRatio
+        springForce.stiffness = stiffness
+        dotIndicatorSpring!!.spring = springForce
     }
 
     override fun addDot(index: Int) {
@@ -119,35 +114,37 @@ class WormDotsIndicator @JvmOverloads constructor(
             }
         }
 
-        dots.add(dot.findViewById<View>(R.id.worm_dot) as ImageView)
+        dots.add(dot.findViewById<View>(R.id.spring_dot) as ImageView)
         strokeDotsLinearLayout.addView(dot)
     }
 
     private fun buildDot(stroke: Boolean): ViewGroup {
         val dot = LayoutInflater.from(context).inflate(
-            R.layout.worm_dot_layout, this,
+            R.layout.spring_dot_layout, this,
             false
         ) as ViewGroup
         if (VERSION.SDK_INT >= VERSION_CODES.JELLY_BEAN_MR1) {
             dot.layoutDirection = View.LAYOUT_DIRECTION_LTR
         }
-        val dotImageView = dot.findViewById<View>(R.id.worm_dot)
-        dotImageView.setBackgroundResource(
-            if (stroke) R.drawable.worm_dot_stroke_background else R.drawable.worm_dot_background
+
+        val dotView = dot.findViewById<ImageView>(R.id.spring_dot)
+        dotView.setBackgroundResource(
+            if (stroke) R.drawable.spring_dot_stroke_background else R.drawable.spring_dot_background
         )
-        val params = dotImageView.layoutParams as RelativeLayout.LayoutParams
-        params.height = dotsSize.toInt()
+        val params = dotView.layoutParams as RelativeLayout.LayoutParams
+        params.height = (if (stroke) dotsSize else dotIndicatorSize).toInt()
         params.width = params.height
         params.addRule(RelativeLayout.CENTER_VERTICAL, RelativeLayout.TRUE)
 
         params.setMargins(dotsSpacing.toInt(), 0, dotsSpacing.toInt(), 0)
 
-        setUpDotBackground(stroke, dotImageView)
+        setUpDotBackground(stroke, dotView)
         return dot
     }
 
-    private fun setUpDotBackground(stroke: Boolean, dotImageView: View) {
-        val dotBackground = dotImageView.background as GradientDrawable
+    private fun setUpDotBackground(stroke: Boolean, dotView: View) {
+        val dotBackground =
+            dotView.findViewById<View>(R.id.spring_dot).background as GradientDrawable
         if (stroke) {
             dotBackground.setStroke(dotsStrokeWidth.toInt(), dotsStrokeColor)
         } else {
@@ -156,13 +153,13 @@ class WormDotsIndicator @JvmOverloads constructor(
         dotBackground.cornerRadius = dotsCornerRadius
     }
 
-    override fun refreshDotColor(index: Int) {
-        setUpDotBackground(true, dots[index])
-    }
-
     override fun removeDot() {
         strokeDotsLinearLayout.removeViewAt(strokeDotsLinearLayout.childCount - 1)
         dots.removeAt(dots.size - 1)
+    }
+
+    override fun refreshDotColor(index: Int) {
+        setUpDotBackground(true, dots[index])
     }
 
     override fun buildOnPageChangedListener(): OnPageChangeListenerHelper {
@@ -176,30 +173,10 @@ class WormDotsIndicator @JvmOverloads constructor(
                 nextPosition: Int,
                 positionOffset: Float
             ) {
-                val x = (dots[selectedPosition].parent as ViewGroup).left.toFloat()
-                val nextX =
-                    (dots[if (nextPosition == -1) selectedPosition else nextPosition].parent as ViewGroup).left
-                        .toFloat()
-                val xFinalPosition: Float
-                val widthFinalPosition: Float
-
-                when (positionOffset) {
-                    in 0.0f..0.1f -> {
-                        xFinalPosition = x
-                        widthFinalPosition = dotsSize
-                    }
-                    in 0.1f..0.9f -> {
-                        xFinalPosition = x
-                        widthFinalPosition = nextX - x + dotsSize
-                    }
-                    else -> {
-                        xFinalPosition = nextX
-                        widthFinalPosition = dotsSize
-                    }
-                }
-
-                dotIndicatorXSpring?.animateToFinalPosition(xFinalPosition)
-                dotIndicatorWidthSpring?.animateToFinalPosition(widthFinalPosition)
+                val distance = dotsSize + dotsSpacing * 2
+                val x = (dots[selectedPosition].parent as ViewGroup).left
+                val globalPositionOffsetPixels = x + distance * positionOffset
+                dotIndicatorSpring?.animateToFinalPosition(globalPositionOffsetPixels)
             }
 
             override fun resetPosition(position: Int) {
@@ -208,7 +185,7 @@ class WormDotsIndicator @JvmOverloads constructor(
         }
     }
 
-    override val type get() = WORM
+    override val type get() = SPRING
 
     //*********************************************************
     // Users Methods
@@ -229,7 +206,7 @@ class WormDotsIndicator @JvmOverloads constructor(
     /**
      * Set the stroke indicator dots color.
      *
-     * @param color the color fo the stroke indicator dots.
+     * @param color the color for the stroke indicator dots.
      */
     fun setStrokeDotsIndicatorColor(color: Int) {
         dotsStrokeColor = color
