@@ -14,4 +14,4 @@ Simple app to make web view application with custom link , icon, package name
 
 |Intro  | Home  | Make App|
 ---------|-------------|----------------|
-|<img src="./Screenshot/INTRO.GIF?raw=true" width="35%" />|<img src="./Screenshot/PAID.GIF?raw=true" width="35%" />|<img src="./Screenshot/HOME.GIF?raw=true" width="35%" />
+|<img src="./Screenshot/INTRO.gif?raw=true" width="35%" />|<img src="./Screenshot/PAID.gif?raw=true" width="35%" />|<img src="./Screenshot/HOME.gif?raw=true" width="35%" />
