@@ -15,3 +15,8 @@ Simple app to make web view application with custom link , icon, package name
 |Intro  | Home  | Make App|
 ---------|-------------|----------------|
 |<img src="./Screenshot/INTRO.gif?raw=true" width="100%" />|<img src="./Screenshot/PAID.gif?raw=true" width="100%" />|<img src="./Screenshot/HOME.gif?raw=true" width="100%" />
+
+# How to run?
+1 • If you're using Sketchware Studio extract **lib/libs.zip** to **/storage/emulated/0/.sketchware/libs/local_libs/**
+2 • add native libraries
+3 • add all Kotlin and Java Files in Java/Kotlin Folder
